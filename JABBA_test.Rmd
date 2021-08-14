@@ -2,7 +2,12 @@
 title: "Production model in JABBA"
 author: "Kohei Hamabe"
 date: "2021/8/5"
-output: md_document
+output:
+  md_document:
+    toc: true
+    variant: markdown_github
+  html_document:
+    toc: true
 ---
 
 ```{r setup, include=FALSE}
@@ -74,13 +79,13 @@ plot(dat$hake$timeI, dat$hake$obsI, lwd=2,
 <font color="Red">**今回はHakeのデータを使って比較してみる**</font>
 
 
-# 仕様
+# シナリオ1
 
 - データ: Hake
 - 形状パラメータ: m=2 (Schaefer型)
 - 観測誤差
   - O: CPUE
-  - X: Catch
+  - O: Catch
 - 過程誤差あり
 
 - 事前分布は出来る限り無情報にしてみる
@@ -135,7 +140,7 @@ jbinput_hake1 <-  build_jabba(
   assessment="test_hake",
   scenario = "TestRun",
   model.type = "Schaefer",
-  add.catch.CV = FALSE,
+  add.catch.CV = TRUE,
   # prior sets
   r.dist = "lnorm",
   r.prior = c(0.5,5),
@@ -170,6 +175,7 @@ knitr::kable(fit_hake1$estimates)
 ```{r}
 
 jbplot_ppdist(fit_hake1)
+par(mfrow = c(1,2))
 jbplot_residuals(fit_hake1)
 jbplot_cpuefits(fit_hake1)
 
@@ -183,18 +189,213 @@ jbplot_kobe(fit_hake1,add=T)
 
 ```
 
+SPICTと結果が違う
+
+- JABBAの方が不確実性を大きく推定するように見える(MCMCだから?)
+- JABBAのF/Fmsyとかは現実的に見えない
+- 事前分布を無情報にするのが無理なのかな...
+
+
+# シナリオ1 (事前分布強め)
+
+```{r}
+
+jbinput_hake1.2 <-  build_jabba(
+  catch = dat_hake$catch,
+  cpue = dat_hake$cpue,
+  se = dat_hake$se,
+  assessment="test_hake",
+  scenario = "TestRun",
+  model.type = "Schaefer",
+  add.catch.CV = TRUE,
+  catch.cv = 0.19,
+  # prior sets
+  r.dist = "lnorm",
+  r.prior = c(0.46,1),
+  K.dist = "lnorm",
+  K.prior = c(2407, 1),
+  # variance sets
+  sigma.proc = TRUE,
+  igamma = c(1, 1),
+  sigma.est = TRUE, # additional observation variance
+  fixed.obsE = 0.)
+
+fit_hake1.2 <- fit_jabba(jbinput_hake1.2, quickmcmc=TRUE)
+knitr::kable(fit_hake1.2$pars)
+knitr::kable(fit_hake1.2$estimates)
+
+```
+
+- KはSPICT(2407)より大きめ
+- 代わりにrはSPICT(0.46)より小さめ
+
+```{r}
+
+jbplot_ppdist(fit_hake1.2)
+par(mfrow = c(1,2))
+jbplot_residuals(fit_hake1.2)
+jbplot_cpuefits(fit_hake1.2)
+
+par(mfrow=c(3,2),mar = c(3.5, 3.5, 0.5, 0.1))
+jbplot_trj(fit_hake1.2,type="B",add=T)
+jbplot_trj(fit_hake1.2,type="F",add=T)
+jbplot_trj(fit_hake1.2,type="BBmsy",add=T)
+jbplot_trj(fit_hake1.2,type="FFmsy",add=T)
+jbplot_spphase(fit_hake1.2,add=T)
+jbplot_kobe(fit_hake1.2,add=T)
+
+```
 
 ### レトロスペクティブ解析の実行
 
 5年間遡ってみる。
 
-```{r}
+```{r, include=FALSE}
 
-hc <- jabba_hindcast(jbinput_hake1, peels = 0:5)
-jbplot_retro(hc,as.png = F,single.plots = F)
+hc <- jabba_hindcast(jbinput_hake1.2, peels = 0:5)
 
 ```
 
+```{r}
+jbplot_retro(hc,as.png = F,single.plots = F)
+```
+
+
+# シナリオ2
+
+- データ: Hake
+- 形状パラメータ: mの推定
+- 観測誤差
+  - O: CPUE
+  - O: Catch
+- 過程誤差あり
+
+```{r}
+
+jbinput_hake2 <-  build_jabba(
+  catch = dat_hake$catch,
+  cpue = dat_hake$cpue,
+  se = dat_hake$se,
+  assessment="test_hake",
+  scenario = "TestRun",
+  model.type = "Pella_m",
+  add.catch.CV = TRUE,
+  catch.cv = 0.289,
+  # prior sets
+  r.dist = "lnorm",
+  r.prior = c(0.46,1),
+  K.dist = "lnorm",
+  K.prior = c(2407, 1),
+
+  # variance sets
+  sigma.proc = TRUE,
+  igamma = c(1, 1),
+  sigma.est = TRUE, # additional observation variance
+  fixed.obsE = 0.)
+
+fit_hake2 <- fit_jabba(jbinput_hake2, quickmcmc=TRUE)
+knitr::kable(fit_hake2$pars)
+knitr::kable(fit_hake2$estimates)
+
+jbplot_ppdist(fit_hake2)
+par(mfrow = c(1,2))
+jbplot_residuals(fit_hake2)
+jbplot_cpuefits(fit_hake2)
+
+par(mfrow=c(3,2),mar = c(3.5, 3.5, 0.5, 0.1))
+jbplot_trj(fit_hake2,type="B",add=T)
+jbplot_trj(fit_hake2,type="F",add=T)
+jbplot_trj(fit_hake2,type="BBmsy",add=T)
+jbplot_trj(fit_hake2,type="FFmsy",add=T)
+jbplot_spphase(fit_hake2,add=T)
+jbplot_kobe(fit_hake2,add=T)
+
+```
+
+### レトロスペクティブ解析の実行
+
+5年間遡ってみる。
+
+```{r, include=FALSE}
+
+hc <- jabba_hindcast(jbinput_hake2, peels = 0:5)
+
+```
+
+```{r}
+jbplot_retro(hc,as.png = F,single.plots = F)
+```
+
+
+# シナリオ3
+
+- データ: Hake
+- 形状パラメータ: m=2 (Schaefer型)
+- 観測誤差
+  - O: CPUE
+  - **X: Catch**
+- 過程誤差あり
+
+- 事前分布は出来る限り無情報にしてみる
+  - rとKは対数正規になるので、分散を大きく
+  - 初期枯渇率は無情報にするとエラーが出るので$\alpha=\beta=0.5$と台地型に
+  - 分散は逆ガンマ分布なので、$\alpha=\beta=1$として0.5に山が来て、その後なだらかに減少みたいな
+
+```{r}
+
+jbinput_hake3 <-  build_jabba(
+  catch = dat_hake$catch,
+  cpue = dat_hake$cpue,
+  se = dat_hake$se,
+  assessment="test_hake",
+  scenario = "TestRun",
+  model.type = "Schaefer",
+  add.catch.CV = FALSE,
+  # prior sets
+  r.dist = "lnorm",
+  r.prior = c(0.44,1),
+  K.dist = "lnorm",
+  K.prior = c(2534, 1),
+  # variance sets
+  sigma.proc = TRUE,
+  igamma = c(1, 1),
+  sigma.est = TRUE, # additional observation variance
+  fixed.obsE = 0.)
+
+fit_hake3 <- fit_jabba(jbinput_hake3, quickmcmc=TRUE)
+knitr::kable(fit_hake3$pars)
+knitr::kable(fit_hake3$estimates)
+
+jbplot_ppdist(fit_hake3)
+par(mfrow = c(1,2))
+jbplot_residuals(fit_hake3)
+jbplot_cpuefits(fit_hake3)
+
+par(mfrow=c(3,2),mar = c(3.5, 3.5, 0.5, 0.1))
+jbplot_trj(fit_hake3,type="B",add=T)
+jbplot_trj(fit_hake3,type="F",add=T)
+jbplot_trj(fit_hake3,type="BBmsy",add=T)
+jbplot_trj(fit_hake3,type="FFmsy",add=T)
+jbplot_spphase(fit_hake3,add=T)
+jbplot_kobe(fit_hake3,add=T)
+
+```
+
+
+### レトロスペクティブ解析の実行
+
+5年間遡ってみる。
+
+```{r, include=FALSE}
+
+hc <- jabba_hindcast(jbinput_hake3, peels = 0:5)
+
+```
+
+```{r}
+jbplot_retro(hc,as.png = F,single.plots = F)
+
+```
 
 # 参考資料
 
