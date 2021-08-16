@@ -1,0 +1,87 @@
+---
+title: "Self TMB code"
+author: "Kohei Hamabe"
+date: "2021/8/16"
+output:
+  md_document:
+    toc: true
+    variant: markdown_github
+  html_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(TMB)
+library(tidyverse)
+dat <- readRDS("data/pol.rds")
+```
+
+
+# TMBで最尤推定法
+
+```{r, include=FALSE}
+
+#compile("SPM.cpp")
+dyn.load(dynlib("SPM"))
+
+TT <- length(dat$hake$timeC)
+data <- list(cpue1=dat$hake$timeI, Catch=dat$hake$obsC)
+
+par_init <- list(
+  logit_D0 = 1,
+  log_r = log(0.3),
+  log_K = log(5000),
+  log_m = log(2),
+  log_q1 = log(max(data$cpue1)/max(data$Catch)),
+  log_sig1 = log(0.05),
+  log_tau = log(0.5),
+  log_Dep = rep(log(0.8), TT)
+)
+map <- list(log_m = factor(NA))
+
+obj <- MakeADFun(data, par_init, random="log_Dep", map=map, DLL="SPM")
+opt <- nlminb(obj$par, obj$fn, obj$gr)
+res_sdr <- sdreport(obj)
+
+```
+
+
+
+## 結果
+
+```{r}
+
+knitr::kable(data.frame(par = names(res_sdr$value)[c(1:4,53:55)], 
+                        Est = res_sdr$value[c(1:4,53:55)],
+                        sd = res_sdr$sd[c(1:4,53:55)]))
+
+```
+
+推定できていない
+
+```{r, eval=FALSE, echo=FALSE}
+
+B_est <- res_sdr$value[names(res_sdr$value)=="B"]
+B_se <- res_sdr$sd[names(res_sdr$value)=="B"]
+B_lower <- B_est*exp(-1.96*B_se/B_est)
+B_upper <- B_est*exp(+1.96*B_se/B_est)
+
+plot(dat$hake$timeC, B_est, type="l", col="red", ylab="Biomass", 
+     ylim=c(0, max(B_upper)), xlab = "Year")
+points(dat$hake$timeC, B_lower, type="l", lty=2, col="grey")
+points(dat$hake$timeC, B_upper, type="l", lty=2, col="grey")
+
+BBmsy <- B_est/res_sdr$value[4]
+FFmsy <- (data$Catch/B_est)/(res_sdr$value[3]/res_sdr$value[4])
+plot(c(0,2), c(0,2), type = "n", xlab = "B / Bmsy", ylab = "F / Fmsy")
+polygon(c(0,1,1,0), c(0,0,1,1), col = rgb(1,0.5,0,alpha=0.5), border = NA)
+polygon(c(1,2,2,1), c(0,0,1,1), col = rgb(0,1,0,alpha=0.5), border = NA)
+polygon(c(0,1,1,0), c(1,1,2,2), col = rgb(1,0,0,alpha=0.5), border = NA)
+polygon(c(1,2,2,1), c(1,1,2,2), col = rgb(1,1,0,alpha=0.5), border = NA)
+title(main = "Kobe-plot")
+lines(BBmsy, FFmsy, lty=1, col="black")
+
+```
+
+
