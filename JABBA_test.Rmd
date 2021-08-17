@@ -150,7 +150,7 @@ jbinput_hake1 <-  build_jabba(
   psi.prior = c(0.5,0.5),
   # variance sets
   sigma.proc = TRUE,
-  igamma = c(1, 1),
+  igamma = c(0.001, 0.001),
   sigma.est = TRUE, # additional observation variance
   fixed.obsE = 0.)
 
@@ -216,7 +216,7 @@ jbinput_hake1.2 <-  build_jabba(
   K.prior = c(2407, 1),
   # variance sets
   sigma.proc = TRUE,
-  igamma = c(1, 1),
+  igamma = c(0.001, 0.001),
   sigma.est = TRUE, # additional observation variance
   fixed.obsE = 0.)
 
@@ -289,7 +289,7 @@ jbinput_hake2 <-  build_jabba(
 
   # variance sets
   sigma.proc = TRUE,
-  igamma = c(1, 1),
+  igamma = c(0.001, 0.001),
   sigma.est = TRUE, # additional observation variance
   fixed.obsE = 0.)
 
@@ -358,7 +358,7 @@ jbinput_hake3 <-  build_jabba(
   K.prior = c(2534, 1),
   # variance sets
   sigma.proc = TRUE,
-  igamma = c(1, 1),
+  igamma = c(0.001, 0.001),
   sigma.est = TRUE, # additional observation variance
   fixed.obsE = 0.)
 
